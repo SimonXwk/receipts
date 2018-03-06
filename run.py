@@ -68,7 +68,11 @@ def get_google_drive_data():
     http = credentials.authorize(httplib2.Http())
     drive_service = discovery.build('drive', 'v3', http=http)
 
-    query = "name contains '2018' and mimeType != 'application/vnd.google-apps.folder'"
+    query = """
+    name contains '2018'
+    and mimeType != 'application/vnd.google-apps.folder'
+    and trashed != true
+    """
     response = drive_service.files().list(spaces='drive',
                                           orderBy='name',
                                           pageSize=500,
@@ -128,8 +132,7 @@ def main():
 
     """ Save output
     """
-    home_dir = os.path.expanduser('~')
-    output_dir = os.path.join(home_dir, 'Desktop', 'out.csv')
+    output_dir = os.path.join(os.path.expanduser('~'), 'Desktop', 'out.csv')
     df.to_csv(output_dir, encoding='utf-8-sig')
 
     """ Prepare Plotting Data
@@ -142,20 +145,24 @@ def main():
     df_by_supplier.columns = ['Invoices', 'TotalPaid', 'MinPaid', 'MaxPaid', 'MeanPaid']
     print(df_by_supplier)
 
-    """ Plotting 
+    """ Plotting : Globals
     """
     mpl.rcParams['font.sans-serif'] = ['SimHei']  # Showing Chinese Characters
     mpl.rcParams['font.serif'] = ['SimHei']  # Showing Chinese Characters
 
-    gs = mpl.gridspec.GridSpec(2, 2, width_ratios=[2, 3], height_ratios=[2, 1])
-    ax1 = plt.subplot(gs[0, 0])
-    ax2 = plt.subplot(gs[1, 0])
-    ax3 = plt.subplot(gs[:, 1])
+    fig = plt.figure()
+    grid = mpl.gridspec.GridSpec(nrows=2, ncols=2, width_ratios=[5, 6], height_ratios=[2, 1])
+    ax1 = fig.add_subplot(grid[0, 0])
+    ax2 = fig.add_subplot(grid[1, 0])
+    ax3 = fig.add_subplot(grid[:, 1])
+    fig.tight_layout()
+    fig.canvas.set_window_title('Expenditure summarized by receipts & invoices collected in Google Drive')
 
+    """ Plotting : Axes
+    """
     series1 = df_by_date['TotalPaid']
     series2 = pd.Series(index=series1.index, data=series1.values.mean())
     ax1.plot(series1.index, series1.values, 'b-o', series2.index, series2.values, 'r-')
-    ax1.plot()
     ax1.set(xlabel='Date', ylabel='Invoice Paid', title='General Expenditure By Date({})'.format(len(series1.index)))
     ax1.grid()
 
@@ -168,8 +175,9 @@ def main():
     series1 = df_by_supplier['TotalPaid']
     ax3.pie(series1.values, labels=series1.index, autopct='%1.1f%%', shadow=False, startangle=90)
     ax3.set(title='General Expenditure By Supplier ({}), from {} to {}'.format(len(series1.index), min_date, max_date))
-    ax3.grid()
 
+    """ Plotting : Plot & Show
+    """
     plt.style.use('ggplot')
     plt.show()
 
